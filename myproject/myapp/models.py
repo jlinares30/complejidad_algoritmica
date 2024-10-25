@@ -8,7 +8,7 @@ class Proveedor(models.Model):
     departamento = models.CharField(max_length=100)
     velocidad = models.CharField(max_length=100)
     conexiones = models.IntegerField()
-    router = models.ForeignKey('Router', on_delete=models.CASCADE, null=True, blank=True)
+    router_id = models.ForeignKey('Router', on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.empresa} - {self.tecnologia} ({self.segmento}) ({self.departamento}) ({self.velocidad}) ({self.conexiones})"
