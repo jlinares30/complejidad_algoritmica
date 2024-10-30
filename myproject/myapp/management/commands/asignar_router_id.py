@@ -20,9 +20,9 @@ class Command(BaseCommand):
                 try:
                     # Obtener la instancia del Router
                     router_instance = Router.objects.get(router_id=departamento_router_map[departamento])
-                    proveedor.router_id = router_instance  # Asignar la instancia del Router
+                    proveedor.router = router_instance  # Asignar la instancia del Router
                     proveedor.save()  # Guardar el proveedor con el nuevo router
-                    self.stdout.write(self.style.SUCCESS(f'Router ID {proveedor.router_id.router_id} asignado a {proveedor.empresa}'))
+                    self.stdout.write(self.style.SUCCESS(f'Router ID {proveedor.router.router_id} asignado a {proveedor.empresa}'))
                 except Router.DoesNotExist:
                     self.stdout.write(self.style.ERROR(f'Router no encontrado para el ID: {departamento_router_map[departamento]}'))
             else:

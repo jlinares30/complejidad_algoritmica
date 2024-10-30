@@ -2,8 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Visualización del Grafo</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafo</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
     <style>
         .node {
             stroke: #fff;
@@ -14,87 +15,104 @@
             stroke: #999;
             stroke-opacity: 0.6;
         }
-        .highlight {
-            stroke: red;
-            stroke-width: 2px;
-        }
     </style>
 </head>
 <body>
-    <h1>Visualización del Grafo</h1>
-    <svg width="800" height="600"></svg>
-
+    <h1>Grafo de Proveedores y Routers</h1>
+    <svg width="1500" height="900"></svg>
     <script>
-        fetch('/grafo/')
-            .then(response => response.json())
-            .then(data => {
-                const nodes = data.nodos.map(d => ({ id: d }));
-                const links = data.aristas;
+        const grafoData = {{ grafo_json|safe }}  // Cargar el JSON del grafo
 
-                const svg = d3.select("svg");
-                const width = +svg.attr("width");
-                const height = +svg.attr("height");
+        const svg = d3.select("svg")
+              width = +svg.attr("width")
+              height = +svg.attr("height")
 
-                const simulation = d3.forceSimulation(nodes)
-                    .force("link", d3.forceLink().id(d => d.id).distance(100))
-                    .force("charge", d3.forceManyBody().strength(-300))
-                    .force("center", d3.forceCenter(width / 2, height / 2));
+        const simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id).distance(250))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2));
 
-                const link = svg.append("g")
-                    .attr("class", "links")
-                    .selectAll("line")
-                    .data(links)
-                    .enter().append("line")
-                    .attr("class", "link")
-                    .attr("stroke-width", d => Math.sqrt(d.weight));
+        const link = svg.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(grafoData.aristas)
+            .enter().append("line")
+            .attr("class", "link")
+            .attr("stroke", "gray")
+            .attr("stroke-width", d => Math.sqrt(d.weight) * (-.1));
 
-                const node = svg.append("g")
-                    .attr("class", "nodes")
-                    .selectAll("circle")
-                    .data(nodes)
-                    .enter().append("circle")
-                    .attr("class", "node")
-                    .attr("r", 5)
-                    .call(d3.drag()
-                        .on("start", dragstarted)
-                        .on("drag", dragged)
-                        .on("end", dragended));
+        // Agregar etiquetas para las aristas
+        const linkLabels = svg.append("g")
+            .attr("class", "link-labels")
+            .selectAll("text")
+            .data(grafoData.aristas)
+            .enter().append("text")
+            .attr("class", "link-label")
+            .attr("font-size", "10px")
+            .attr("fill", "black")
+            .text(d => d.weight)  // Mostrar el peso de la arista
+            .attr("text-anchor", "middle");  // Centrar el texto
 
-                node.append("title").text(d => d.id);
+        const node = svg.append("g")
+            .attr("class", "nodes")
+            .selectAll("circle")
+            .data(grafoData.nodos)
+            .enter().append("circle")
+            .attr("class", "node")
+            .attr("r", 5)
+            .attr("fill", "lightblue")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
 
-                simulation
-                    .nodes(nodes)
-                    .on("tick", ticked);
+        node.append("title")
+            .text(d => d.id);
 
-                simulation.force("link").links(links);
+        // const labels = svg.append("g")
+        //     .attr("class", "labels")
+        //     .selectAll("text")
+        //     .data(grafoData.nodos)
+        //     .enter().append("text")
+        //     .text(d => d.id)  
+        //     .attr("font-size", "10px")
+        //     .attr("fill", "black");
 
-                function ticked() {
-                    link.attr("x1", d => d.source.x)
-                        .attr("y1", d => d.source.y)
-                        .attr("x2", d => d.target.x)
-                        .attr("y2", d => d.target.y);
+        simulation
+            .nodes(grafoData.nodos)
+            .on("tick", ticked);
 
-                    node.attr("cx", d => d.x)
-                        .attr("cy", d => d.y);
-                }
+        simulation.force("link")
+            .links(grafoData.aristas);
 
-                function dragstarted(event) {
-                    if (!event.active) simulation.alphaTarget(0.3).restart();
-                    event.subject.fx = event.subject.x;
-                    event.subject.fy = event.subject.y;
-                }
+        function ticked() {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
 
-                function dragged(event) {
-                    event.subject.fx = event.x;
-                    event.subject.fy = event.y;
-                }
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+        }
 
-                function dragended(event) {
-                    if (!event.active) simulation.alphaTarget(0);
-                    event.subject.fx = null;
-                    event.subject.fy = null;
-                }
-            });
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
     </script>
 </body>
 </html>
