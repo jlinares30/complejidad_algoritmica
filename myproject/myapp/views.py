@@ -28,7 +28,6 @@ def crear_grafo():
 
     # Obtener solo los primeros 2000 proveedores y sus routers
     proveedores = Proveedor.objects.select_related('router')[:1500]  # Limitar a 2000 registros
-
     # Agregar nodos para cada proveedor y router
     for proveedor in proveedores:
         G.add_node(proveedor.empresa, tipo='Proveedor')  # Asumiendo que 'empresa' es el nombre del proveedor
@@ -59,8 +58,9 @@ def grafo_a_json(G):
 
 def index(request):
     G = crear_grafo()  # Asumiendo que esta función ya está definida
+    #print(G)
     grafo_json = grafo_a_json(G)  # Convertir el grafo a JSON
-
+    #print(grafo_json)
     return render(request, 'grafo_app/index.html', {'grafo_json': grafo_json})  # Pasar el JSON a la plantilla
 
 # def index(request):

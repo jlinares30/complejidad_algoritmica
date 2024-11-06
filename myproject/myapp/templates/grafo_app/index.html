@@ -21,8 +21,8 @@
     <h1>Grafo de Proveedores y Routers</h1>
     <svg width="1500" height="900"></svg>
     <script>
-        const grafoData = {{ grafo_json|safe }}  // Cargar el JSON del grafo
-
+        const grafoData = JSON.parse('{{ grafo_json|safe }}')  // Cargar el JSON del grafo
+        console.log(grafoData)
         const svg = d3.select("svg")
               width = +svg.attr("width")
               height = +svg.attr("height")
