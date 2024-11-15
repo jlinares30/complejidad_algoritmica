@@ -2,53 +2,61 @@ from django.shortcuts import render
 import networkx as nx
 import re
 import json
-from .models import Proveedor, Router  # Ajusta la importación según tu estructura de proyecto
+from .models import Proveedor, Router
+import math
+import heapq as hq
+from django.http import JsonResponse
 
 
-def extraer_velocidades(velocidad_str):
-    # Usar una expresión regular para encontrar los valores de velocidad
+def extraer_latencia(velocidad_str):
     match = re.search(r'(\d+)\s*<=\s*BW\s*<\s*(\d+)\s*(kbps|Mbps)', velocidad_str)
     if match:
         velocidad_minima = int(match.group(1))
         velocidad_maxima = int(match.group(2))
         unidad = match.group(3)
 
-        # convertir a kbps
+        # Convertir a kbps
         if unidad == 'Mbps':
-            velocidad_minima *= 1000  
-            velocidad_maxima *= 1000  
-        elif unidad is None:
-            pass
+            velocidad_minima *= 1000
+            velocidad_maxima *= 1000
 
-        return velocidad_minima, velocidad_maxima
-    return None, None
+        return (velocidad_minima + velocidad_maxima) / 2
+    return None
 
-def crear_grafo():
+
+def crear_grafo(horario):
     G = nx.Graph()
-
-    # Obtener solo los primeros 2000 proveedores y sus routers
-    proveedores = Proveedor.objects.select_related('router')[:1500]  # Limitar a 2000 registros
-    # Agregar nodos para cada proveedor y router
+    proveedores = Proveedor.objects.select_related('router')
+    
     for proveedor in proveedores:
-        G.add_node(proveedor.empresa, tipo='Proveedor')  # Asumiendo que 'empresa' es el nombre del proveedor
-        if proveedor.router:  # Verifica que el router no sea None
-            nombre_router = proveedor.router.nombre  # Accede al nombre del router
+        latencia_base = 30 if horario == 'dia' else 70
+        latencia = latencia_base / (1 + proveedor.conexiones)
+        latencia += extraer_latencia(proveedor.velocidad) or 0
+
+        G.add_node(proveedor.empresa, departamento=proveedor.departamento, tipo='Proveedor')
+        if proveedor.router:
+            nombre_router = proveedor.router.nombre
             G.add_node(nombre_router, tipo='Router')
-
-            # Extraer las velocidades
-            velocidad_minima, velocidad_maxima = extraer_velocidades(proveedor.velocidad)
-
-            if velocidad_minima is not None and velocidad_maxima is not None:
-                # Calcular el peso de la arista como el promedio de las velocidades
-                peso_velocidades = (velocidad_minima + velocidad_maxima) / 2
-                
-                # Incorporar el número de conexiones en el peso
-                peso_total = peso_velocidades * proveedor.conexiones  # Multiplica por el número de conexiones
-                
-                # Agregar la arista al grafo
-                G.add_edge(proveedor.empresa, nombre_router, weight=peso_total)
-
+            G.add_edge(proveedor.empresa, nombre_router, weight=latencia)
     return G
+
+
+def mejor_empresa_por_departamento(grafo, departamento):
+    empresas_departamento = [n for n, d in grafo.nodes(data=True) if d.get('departamento') == departamento]
+    if not empresas_departamento:
+        return None, None
+
+    mejor_empresa = None
+    menor_latencia = math.inf
+
+    for empresa in empresas_departamento:
+        latencia = sum(d['weight'] for _, _, d in grafo.edges(empresa, data=True))
+        if latencia < menor_latencia:
+            menor_latencia = latencia
+            mejor_empresa = empresa
+
+    return mejor_empresa, menor_latencia
+
 
 def grafo_a_json(G):
     nodos = [{"id": node, "tipo": G.nodes[node]['tipo']} for node in G.nodes()]
@@ -56,12 +64,21 @@ def grafo_a_json(G):
     
     return json.dumps({"nodos": nodos, "aristas": aristas})
 
-def index(request):
-    G = crear_grafo()  # Asumiendo que esta función ya está definida
-    #print(G)
-    grafo_json = grafo_a_json(G)  # Convertir el grafo a JSON
-    #print(grafo_json)
-    return render(request, 'grafo_app/index.html', {'grafo_json': grafo_json})  # Pasar el JSON a la plantilla
 
-# def index(request):
-#     return render(request, 'grafo_app/index.html')
+def index(request):
+    departamento = request.GET.get('departamento')
+    horario = request.GET.get('horario', 'dia')
+    mejor_empresa = None
+    menor_latencia = None
+
+    G = crear_grafo(horario)
+    grafo_json = grafo_a_json(G)
+
+    if departamento:
+        mejor_empresa, menor_latencia = mejor_empresa_por_departamento(G, departamento)
+
+    return render(request, 'grafo_app/index.html', {
+        'grafo_json': grafo_json,
+        'mejor_empresa': mejor_empresa,
+        'menor_latencia': menor_latencia,
+    })

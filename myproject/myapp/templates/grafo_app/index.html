@@ -11,18 +11,43 @@
             stroke-width: 1.5px;
         }
         .link {
-            fill: none;
+            fill:rgb(3, 49, 21);
             stroke: #999;
             stroke-opacity: 0.6;
+        }
+        .link.highlight {
+            stroke: red;
+            stroke-width: 3px;
         }
     </style>
 </head>
 <body>
     <h1>Grafo de Proveedores y Routers</h1>
     <svg width="1500" height="900"></svg>
+
+    <form method="get">
+        <label for="router_inicial">Router inicial:</label>
+        <input type="text" id="router_inicial" name="router_inicial">
+        
+        <label for="router_objetivo">Router objetivo:</label>
+        <input type="text" id="router_objetivo" name="router_objetivo">
+        
+        <button type="submit">Buscar Ruta Mínima</button>
+    </form>
+    
+    {% if ruta %}
+        <h2>Ruta mínima:</h2>
+        <p>{{ ruta }}</p>
+        <p>Distancia total: {{ distancia }}</p>
+    {% else %}
+        <p>No se encontró una ruta.</p>
+    {% endif %}
+    
     <script>
-        const grafoData = JSON.parse('{{ grafo_json|safe }}')  // Cargar el JSON del grafo
+        const grafoData = JSON.parse('{{ grafo_json|safe }}')  
+        const rutaMinima = {{ ruta|safe }};  
         console.log(grafoData)
+        console.log(rutaMinima)
         const svg = d3.select("svg")
               width = +svg.attr("width")
               height = +svg.attr("height")
@@ -31,15 +56,33 @@
             .force("link", d3.forceLink().id(d => d.id).distance(250))
             .force("charge", d3.forceManyBody().strength(-300))
             .force("center", d3.forceCenter(width / 2, height / 2));
+        
+        function resaltarRutaMinima(ruta) {
+            if (ruta) {
+                const edges = grafoData.aristas;
+                edges.forEach(edge => {
+                    // Verifica si la arista está en la ruta mínima
+                    if (ruta.includes(edge.source) && ruta.includes(edge.target)) {
+                        // Añadir la propiedad 'highlight' a las aristas de la ruta mínima
+                        edge.highlight = true;
+                    } else {
+                        edge.highlight = false;
+                    }
+                });
+            }
+            }
 
-        const link = svg.append("g")
-            .attr("class", "links")
-            .selectAll("line")
+        // resaltar la ruta mínima
+        resaltarRutaMinima(rutaMinima);
+        const link = svg.selectAll(".link")
             .data(grafoData.aristas)
             .enter().append("line")
-            .attr("class", "link")
-            .attr("stroke", "gray")
-            .attr("stroke-width", d => Math.sqrt(d.weight) * (-.1));
+            .attr("class", "link")  
+            .attr("stroke", d => d.highlight ? "red" : "#999")  
+            .attr("stroke-width", d => d.highlight ? 3 : 1);
+
+        
+        link.classed("highlight", d => d.highlight);
 
         // Agregar etiquetas para las aristas
         const linkLabels = svg.append("g")
@@ -50,8 +93,8 @@
             .attr("class", "link-label")
             .attr("font-size", "10px")
             .attr("fill", "black")
-            .text(d => d.weight)  // Mostrar el peso de la arista
-            .attr("text-anchor", "middle");  // Centrar el texto
+            .text(d => d.weight) 
+            .attr("text-anchor", "middle"); 
 
         const node = svg.append("g")
             .attr("class", "nodes")
@@ -65,6 +108,8 @@
                 .on("start", dragstarted)
                 .on("drag", dragged)
                 .on("end", dragended));
+
+        
 
         node.append("title")
             .text(d => d.id);
@@ -113,6 +158,7 @@
             d.fx = null;
             d.fy = null;
         }
+        
     </script>
 </body>
 </html>
