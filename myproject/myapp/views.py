@@ -2,11 +2,10 @@ from django.shortcuts import render
 import networkx as nx
 import re
 import json
-from .models import Proveedor, Router  # Ajusta la importación según tu estructura de proyecto
+from .models import Proveedor, Router
 
 
 def extraer_velocidades(velocidad_str):
-    # Usar una expresión regular para encontrar los valores de velocidad
     match = re.search(r'(\d+)\s*<=\s*BW\s*<\s*(\d+)\s*(kbps|Mbps)', velocidad_str)
     if match:
         velocidad_minima = int(match.group(1))
@@ -26,12 +25,11 @@ def extraer_velocidades(velocidad_str):
 def crear_grafo():
     G = nx.Graph()
 
-    # Obtener solo los primeros 2000 proveedores y sus routers
-    proveedores = Proveedor.objects.select_related('router')[:1500]  # Limitar a 2000 registros
+    proveedores = Proveedor.objects.select_related('router')[:1500]  # limitacion de registros
     # Agregar nodos para cada proveedor y router
     for proveedor in proveedores:
-        G.add_node(proveedor.empresa, tipo='Proveedor')  # Asumiendo que 'empresa' es el nombre del proveedor
-        if proveedor.router:  # Verifica que el router no sea None
+        G.add_node(proveedor.empresa, tipo='Proveedor')
+        if proveedor.router:  #verificar si existe el router
             nombre_router = proveedor.router.nombre  # Accede al nombre del router
             G.add_node(nombre_router, tipo='Router')
 
@@ -42,7 +40,7 @@ def crear_grafo():
                 # Calcular el peso de la arista como el promedio de las velocidades
                 peso_velocidades = (velocidad_minima + velocidad_maxima) / 2
                 
-                # Incorporar el número de conexiones en el peso
+                # Incorporar el numero de conexiones en el peso
                 peso_total = peso_velocidades * proveedor.conexiones  # Multiplica por el número de conexiones
                 
                 # Agregar la arista al grafo
@@ -57,7 +55,7 @@ def grafo_a_json(G):
     return json.dumps({"nodos": nodos, "aristas": aristas})
 
 def index(request):
-    G = crear_grafo()  # Asumiendo que esta función ya está definida
+    G = crear_grafo()
     #print(G)
     grafo_json = grafo_a_json(G)  # Convertir el grafo a JSON
     #print(grafo_json)
