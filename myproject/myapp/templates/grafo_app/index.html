@@ -3,116 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafo</title>
+    <title>Recomendación de Proveedores</title>
+    {% load static %}
     <script src="https://d3js.org/d3.v6.min.js"></script>
-    <style>
-        .node {
-            stroke: #fff;
-            stroke-width: 1.5px;
-        }
-        .link {
-            fill: none;
-            stroke: #999;
-            stroke-opacity: 0.6;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
 <body>
-    <h1>Grafo de Proveedores y Routers</h1>
-    <svg width="1500" height="900"></svg>
-    <script>
-        const grafoData = JSON.parse('{{ grafo_json|safe }}')  // Cargar el JSON del grafo
-        console.log(grafoData)
-        const svg = d3.select("svg")
-              width = +svg.attr("width")
-              height = +svg.attr("height")
+    <header>
+        <h1>Recomendación de Proveedores</h1>
+    </header>
+    <div class="container">
+        <form method="get">
+            <label for="departamento">Departamento:</label>
+            <input type="text" id="departamento" name="departamento" placeholder="Ingresa el departamento" required>
+        
+            <label for="horario">Horario:</label>
+            <select id="horario" name="horario">
+                <option value="dia">Día</option>
+                <option value="noche">Noche</option>
+            </select>
+        
+            <button type="submit">Buscar Proveedor</button>
+        </form>
+        
+        {% if departamento %}
+        <button id="btn-ver-grafo">Ver Grafo del Departamento</button>
+        {% endif %}
+        
 
-        const simulation = d3.forceSimulation()
-            .force("link", d3.forceLink().id(d => d.id).distance(250))
-            .force("charge", d3.forceManyBody().strength(-300))
-            .force("center", d3.forceCenter(width / 2, height / 2));
+        {% if mejor_empresa %}
+        <div class="result">
+            <h2>Recomendación:</h2>
+            <p><strong>Empresa:</strong> {{ mejor_empresa }}</p>
+            <p><strong>Latencia Aproximada:</strong> {{ menor_latencia }} ms</p>
+        </div>
+        {% else %}
+        <div class="result">
+            <p>No se encontraron proveedores para el departamento especificado.</p>
+        </div>
+        {% endif %}
 
-        const link = svg.append("g")
-            .attr("class", "links")
-            .selectAll("line")
-            .data(grafoData.aristas)
-            .enter().append("line")
-            .attr("class", "link")
-            .attr("stroke", "gray")
-            .attr("stroke-width", d => Math.sqrt(d.weight) * (-.1));
-
-        // Agregar etiquetas para las aristas
-        const linkLabels = svg.append("g")
-            .attr("class", "link-labels")
-            .selectAll("text")
-            .data(grafoData.aristas)
-            .enter().append("text")
-            .attr("class", "link-label")
-            .attr("font-size", "10px")
-            .attr("fill", "black")
-            .text(d => d.weight)  // Mostrar el peso de la arista
-            .attr("text-anchor", "middle");  // Centrar el texto
-
-        const node = svg.append("g")
-            .attr("class", "nodes")
-            .selectAll("circle")
-            .data(grafoData.nodos)
-            .enter().append("circle")
-            .attr("class", "node")
-            .attr("r", 5)
-            .attr("fill", "lightblue")
-            .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
-
-        node.append("title")
-            .text(d => d.id);
-
-        // const labels = svg.append("g")
-        //     .attr("class", "labels")
-        //     .selectAll("text")
-        //     .data(grafoData.nodos)
-        //     .enter().append("text")
-        //     .text(d => d.id)  
-        //     .attr("font-size", "10px")
-        //     .attr("fill", "black");
-
-        simulation
-            .nodes(grafoData.nodos)
-            .on("tick", ticked);
-
-        simulation.force("link")
-            .links(grafoData.aristas);
-
-        function ticked() {
-            link
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            node
-                .attr("cx", d => d.x)
-                .attr("cy", d => d.y);
-        }
-
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
-
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-    </script>
+        <svg id="grafo-data" width="1200" height="800">{{ grafo_json|safe }}</svg>
+    </div>
+    <script src="{% static 'script.js' %}"></script>
 </body>
 </html>
